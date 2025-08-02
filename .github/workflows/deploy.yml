@@ -20,8 +20,8 @@ jobs:
       - name: Setup SSH key for server connection
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
       - name: Deploy application files via rsync
@@ -36,14 +36,20 @@ jobs:
 
       - name: Install dependencies and restart server
         run: |
-          # This step requires that the SERVER_USER on the remote machine has
-          # passwordless sudo permission for the 'systemctl restart' command.
-          # You must configure this on your server by using 'sudo visudo' and adding:
-          # ${{ secrets.SERVER_USER }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart flaskapp, /usr/bin/systemctl status flaskapp
+          # ----------------- IMPORTANT: SERVER-SIDE ACTION REQUIRED -----------------
+          # This step WILL FAIL until you configure passwordless sudo on your server.
+          #
+          # SSH into your server and run 'sudo visudo'. Then, add the following line at the end of the file,
+          # replacing 'your_deploy_user' with the username from your SERVER_USER secret:
+          #
+          #   your_deploy_user ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart flaskapp, /usr/bin/systemctl status flaskapp
           ssh -T ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
           set -ex
 
           echo "::group::Server-side operations"
+          echo "--- Identifying user on remote server ---"
+          echo "Running commands as user: $(whoami)"
+          echo "User details: $(id)"
           cd ~/flask-app
 
           echo "--- Setting up Python virtual environment ---"
