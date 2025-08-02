@@ -26,38 +26,41 @@ jobs:
 
       - name: Deploy application files via rsync
         run: |
+          echo "🚀 Starting to sync files to the server..."
           rsync -avz --delete \
             --exclude='.git/' \
             --exclude='.github/' \
             --exclude='myenv/' \
             ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/flask-app/
+          echo "✅ File sync complete."
 
       - name: Install dependencies and restart server
         run: |
-          ssh -tt -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=2 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << EOF
-          set -e
+          # This step requires that the SERVER_USER on the remote machine has
+          # passwordless sudo permission for the 'systemctl restart' command.
+          # You must configure this on your server by using 'sudo visudo' and adding:
+          # ${{ secrets.SERVER_USER }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart flaskapp, /usr/bin/systemctl status flaskapp
+          ssh -T ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+          set -ex
 
+          echo "::group::Server-side operations"
           cd ~/flask-app
-          echo "Connected to server."
 
-          echo "Creating virtual environment..."
+          echo "--- Setting up Python virtual environment ---"
           python3 -m venv venv
-
-          echo "Activating virtual environment..."
           source venv/bin/activate
 
-          echo "Installing dependencies..."
+          echo "--- Installing dependencies from requirements.txt ---"
           pip install -r requirements.txt
 
-          echo "Restarting application service..."
-          echo "Running as user: $(whoami)"
-          echo "Current user (whoami): \$(whoami)"
-          echo "Effective UID: \$(id)"
-          echo "USER environment variable: \$USER"
-          echo "Attempting to restart flaskapp using: sudo /usr/bin/systemctl restart flaskapp"
-          sudo /usr/bin/systemctl restart flaskapp || echo "WARNING: failed to restart. Check service status."
+          echo "--- Restarting application service with systemd ---"
+          sudo /usr/bin/systemctl restart flaskapp
 
-          echo "Deployment successful!"
+          echo "--- Checking application status ---"
+          # Add a small delay to allow the service to start
+          sleep 5
+          sudo /usr/bin/systemctl status flaskapp --no-pager
+          echo "::endgroup::"
+
+          echo "🎉 Deployment to server successful!"
           EOF
-
-# Reminder: Please add SERVER_PASSWORD as a GitHub secret to enable sudo commands during deployment.
