@@ -34,18 +34,23 @@ jobs:
 
       - name: Install dependencies and restart server
         run: |
-          ssh -tt ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << EOF
+          ssh -tt -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=2 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << EOF
           set -e
 
           cd ~/flask-app
+          echo "Connected to server."
+
+          echo "Creating virtual environment..."
+          python3 -m venv venv
+
+          echo "Activating virtual environment..."
+          source venv/bin/activate
 
           echo "Installing dependencies..."
-          python3 -m venv venv
-          source venv/bin/activate
           pip install -r requirements.txt
 
           echo "Restarting application service..."
-          echo "${{ secrets.SERVER_PASSWORD }}" | sudo -S systemctl restart flaskapp
+          sudo systemctl restart flaskapp
 
           echo "Deployment successful!"
           EOF
