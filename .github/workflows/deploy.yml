@@ -50,6 +50,8 @@ jobs:
           pip install -r requirements.txt
 
           echo "Restarting application service..."
+          echo "Running as user: $(whoami)"
+          echo "Attempting to restart flaskapp using: sudo /usr/bin/systemctl restart flaskapp"
           sudo /usr/bin/systemctl restart flaskapp || echo "WARNING: failed to restart. Check service status."
 
           echo "Deployment successful!"
