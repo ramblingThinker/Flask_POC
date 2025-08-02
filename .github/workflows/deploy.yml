@@ -51,6 +51,9 @@ jobs:
 
           echo "Restarting application service..."
           echo "Running as user: $(whoami)"
+          echo "Current user (whoami): \$(whoami)"
+          echo "Effective UID: \$(id)"
+          echo "USER environment variable: \$USER"
           echo "Attempting to restart flaskapp using: sudo /usr/bin/systemctl restart flaskapp"
           sudo /usr/bin/systemctl restart flaskapp || echo "WARNING: failed to restart. Check service status."
 
