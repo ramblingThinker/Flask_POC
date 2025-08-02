@@ -24,26 +24,20 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to server
+      - name: Deploy application files via rsync
+        run: |
+          rsync -avz --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='myenv/' \
+            ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/flask-app/
+
+      - name: Install dependencies and restart server
         run: |
           ssh -T ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
           set -e
 
-          APP_DIR=~/flask-app
-          GIT_REPO="git@github.com:${{ github.repository }}.git"
-          GIT_BRANCH="${{ github.ref_name }}"
-
-          # Clone the repo if it doesn't exist
-          if [ ! -d "$APP_DIR/.git" ]; then
-            echo "Cloning repository..."
-            rm -rf "$APP_DIR"
-            git clone "$GIT_REPO" "$APP_DIR"
-          fi
-
-          cd "$APP_DIR"
-          echo "Fetching latest code and resetting..."
-          git fetch origin
-          git reset --hard "origin/$GIT_BRANCH"
+          cd ~/flask-app
 
           echo "Installing dependencies..."
           python3 -m venv venv
