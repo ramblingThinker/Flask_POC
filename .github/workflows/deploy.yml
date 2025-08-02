@@ -6,8 +6,35 @@ on:
       - master # Or your primary branch, e.g., main
 
 jobs:
+  debug-sudo:
+    name: Debug Sudo Permissions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Check sudo permissions on server
+        run: |
+          echo "--- Attempting to connect as ${{ secrets.SERVER_USER }} ---"
+          ssh -T ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+          set -e
+          echo "--- Connected. Running as user: $(whoami) ---"
+
+          echo "--- Checking sudo permissions with 'sudo -l' ---"
+          # This command lists the commands the current user can run with sudo.
+          # It is the most direct way to verify the sudoers file.
+          sudo -l
+
+          echo "--- Sudo test successful! ---"
+          EOF
+
   deploy:
     name: Deploy to Production Server
+    needs: debug-sudo # This job will only run if the debug job succeeds
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -36,13 +63,14 @@ jobs:
 
       - name: Install dependencies and restart server
         run: |
-          # ----------------- IMPORTANT: SERVER-SIDE ACTION REQUIRED -----------------
-          # This step WILL FAIL until you configure passwordless sudo on your server.
+          # ----------------- IMPORTANT: ONE-TIME SERVER SETUP REQUIRED -----------------
+          # This step WILL FAIL until you configure passwordless sudo on your server for the deployment user.
           #
           # SSH into your server and run 'sudo visudo'. Then, add the following line at the end of the file,
-          # replacing 'your_deploy_user' with the username from your SERVER_USER secret:
+          # replacing 'your_deploy_user' with the username from your SERVER_USER secret. This is the most
+          # secure and standard way to handle permissions for automated deployments.
           #
-          #   your_deploy_user ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart flaskapp, /usr/bin/systemctl status flaskapp
+          #   your_deploy_user ALL=(ALL) NOPASSWD: /usr/bin/systemctl * flaskapp
           ssh -T ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
           set -ex
 
@@ -65,6 +93,11 @@ jobs:
           echo "--- Checking application status ---"
           # Add a small delay to allow the service to start
           sleep 5
+          # Use 'is-active' for a reliable script-based check. `set -e` will cause a failure if the service is not active.
+          sudo /usr/bin/systemctl is-active --quiet flaskapp
+          echo "✅ Service is active and running."
+
+          # For more detailed logs, also print the full status.
           sudo /usr/bin/systemctl status flaskapp --no-pager
           echo "::endgroup::"
 
