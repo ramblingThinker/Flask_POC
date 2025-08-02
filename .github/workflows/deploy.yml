@@ -50,11 +50,7 @@ jobs:
           pip install -r requirements.txt
 
           echo "Restarting application service..."
-          if sudo systemctl restart flaskapp; then
-            echo "Service restarted successfully."
-          else
-            echo "WARNING: Failed to restart service. Please check permissions or sudoers config."
-          fi
+          sudo /bin/systemctl restart flaskapp || echo "WARNING: failed to restart. Check service status."
 
           echo "Deployment successful!"
           EOF
