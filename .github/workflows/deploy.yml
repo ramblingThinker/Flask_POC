@@ -34,7 +34,7 @@ jobs:
 
       - name: Install dependencies and restart server
         run: |
-          ssh -T ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+          ssh -tt ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << EOF
           set -e
 
           cd ~/flask-app
@@ -45,7 +45,9 @@ jobs:
           pip install -r requirements.txt
 
           echo "Restarting application service..."
-          sudo systemctl restart flaskapp
+          echo "${{ secrets.SERVER_PASSWORD }}" | sudo -S systemctl restart flaskapp
 
           echo "Deployment successful!"
           EOF
+
+# Reminder: Please add SERVER_PASSWORD as a GitHub secret to enable sudo commands during deployment.
