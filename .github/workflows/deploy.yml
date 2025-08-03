@@ -67,7 +67,7 @@ jobs:
     if: github.ref_name == 'master' || github.ref_name == 'dev'
 
     environment:
-      name: ${{ github.ref_name == 'master' && 'production' || 'development' }}
+      name: ${{ github.ref_name == 'master' && 'dev' || '' }}
 
     steps:
       - name: Checkout code
