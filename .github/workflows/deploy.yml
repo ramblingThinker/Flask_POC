@@ -75,8 +75,8 @@ jobs:
       - name: Confirm environment and secrets context
         run: |
           echo "GITHUB REF NAME: ${{ github.ref_name }}"
-          echo "APP_DIR: ${{ secrets.APP_DIR || 'APP_DIR not available' }}"
-          echo "SERVICE_NAME: ${{ secrets.SERVICE_NAME || 'SERVICE_NAME not available' }}"
+          echo "APP_DIR: ${{ vars.APP_DIR || 'APP_DIR not available' }}"
+          echo "SERVICE_NAME: ${{ vars.SERVICE_NAME || 'SERVICE_NAME not available' }}"
 
       - name: Setup SSH key for server connection
         run: |
@@ -112,7 +112,7 @@ jobs:
           # Define environment-specific variables.
           # You could also set these via secrets if they need to differ between environments.
 
-          cd ${{ secrets.APP_DIR }}
+          cd ${{ vars.APP_DIR }}
           pwd
           ls -la
 
@@ -124,17 +124,17 @@ jobs:
           pip install -r requirements.txt
 
           echo "--- Restarting application service with systemd ---"
-          sudo /usr/bin/systemctl restart ${{ secrets.SERVICE_NAME }}
+          sudo /usr/bin/systemctl restart ${{ vars.SERVICE_NAME }}
 
           echo "--- Checking application status ---"
           # Add a small delay to allow the service to start
           sleep 5
           # Use 'is-active' for a reliable script-based check. `set -e` will cause a failure if the service is not active.
-          sudo /usr/bin/systemctl is-active --quiet ${{ secrets.SERVICE_NAME }}
+          sudo /usr/bin/systemctl is-active --quiet ${{ vars.SERVICE_NAME }}
           echo "✅ Service is active and running."
 
           # For more detailed logs, also print the full status.
-          sudo /usr/bin/systemctl status ${{ secrets.SERVICE_NAME }} --no-pager
+          sudo /usr/bin/systemctl status ${{ vars.SERVICE_NAME }} --no-pager
           echo "::endgroup::"
 
           echo "🎉 Deployment to server successful!"
