@@ -63,11 +63,8 @@ jobs:
     needs: precheck
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # This condition ensures the job only runs for the specified branches
+    environment: dev
     if: github.ref_name == 'master' || github.ref_name == 'dev'
-
-    environment:
-      name: dev
 
     steps:
       - name: Checkout code
