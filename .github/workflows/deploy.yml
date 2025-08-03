@@ -59,7 +59,7 @@ jobs:
           EOF
 
   deploy:
-    name: Deploy to ${{ github.ref_name == 'master' && 'Production' || 'Development' }}
+    name: Deploy to dev
     needs: precheck
     runs-on: ubuntu-latest
     timeout-minutes: 10
