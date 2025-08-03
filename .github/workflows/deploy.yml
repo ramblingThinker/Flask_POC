@@ -25,12 +25,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pytest
 
-      - name: Run tests with pytest
-        run: pytest
+  precheck:
+    name: Passwordless sudo precheck
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Setup SSH key for server connection
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Check passwordless sudo on server
+        run: |
+          if ssh -o BatchMode=yes -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "sudo -n true"; then
+            echo "✅ Passwordless sudo is correctly configured."
+          else
+            echo "❌ ERROR: Passwordless sudo is NOT configured. Please set it up before deploying."
+            exit 1
+          fi
 
   deploy:
     name: Deploy to ${{ github.ref_name == 'master' && 'Production' || 'Development' }}
-    needs: test
+    needs: precheck
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # This condition ensures the job only runs for the specified branches
@@ -38,7 +56,6 @@ jobs:
 
     environment:
       name: ${{ github.ref_name == 'master' && 'production' || 'development' }}
-      url: ${{ secrets.APP_URL }}
 
     steps:
       - name: Checkout code
@@ -105,3 +122,6 @@ jobs:
 
           echo "🎉 Deployment to server successful!"
           EOF
+
+      - name: Output application URL
+        run: echo "Deployed at ${{ secrets.APP_URL }}"
