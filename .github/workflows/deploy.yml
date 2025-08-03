@@ -75,6 +75,13 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Confirm environment and secrets context
+        run: |
+          echo "GITHUB REF NAME: ${{ github.ref_name }}"
+          echo "Environment Secrets in effect:"
+          echo "APP_DIR: ${{ secrets.APP_DIR }}"
+          echo "SERVICE_NAME: ${{ secrets.SERVICE_NAME }}"
+
       - name: Setup SSH key for server connection
         run: |
           mkdir -p ~/.ssh
