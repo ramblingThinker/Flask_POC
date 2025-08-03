@@ -67,7 +67,7 @@ jobs:
     if: github.ref_name == 'master' || github.ref_name == 'dev'
 
     environment:
-      name: ${{ github.ref_name == 'master' && 'dev' || '' }}
+      name: dev
 
     steps:
       - name: Checkout code
@@ -110,6 +110,8 @@ jobs:
           # You could also set these via secrets if they need to differ between environments.
 
           cd ${{ secrets.APP_DIR }}
+          pwd
+          ls -la
 
           echo "--- Setting up Python virtual environment ---"
           python3 -m venv venv
