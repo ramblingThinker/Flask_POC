@@ -39,7 +39,8 @@ jobs:
 
       - name: Check passwordless sudo on server
         run: |
-          ssh -tt -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+          ssh -o BatchMode=yes -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} bash <<'EOF'
+          set -e
           echo "🔍 Verifying current user and groups..."
           whoami
           id
@@ -48,8 +49,8 @@ jobs:
           echo "🔐 Listing allowed sudo commands..."
           sudo -l
 
-          echo "🔁 Checking passwordless sudo with 'sudo -n true'..."
-          if sudo -n true; then
+          echo "🔁 Checking passwordless sudo with 'sudo -n /usr/bin/true'..."
+          if sudo -n /usr/bin/true; then
             echo "✅ Passwordless sudo is correctly configured."
           else
             echo "❌ ERROR: Passwordless sudo is NOT configured. Please set it up before deploying."
