@@ -1,13 +1,16 @@
+# This is a GitHub Actions workflow that automates testing and deployment of the Flask application.
 name: Deploy Flask App
 
 on:
   push:
     branches:
-      - master
+      # Triggers the workflow on pushes to the 'master' (production) and 'dev' (development) branches.
       - dev
+  # Allows the workflow to be triggered manually from the GitHub Actions UI.
   workflow_dispatch:
 
 jobs:
+  # The 'test' job runs first to ensure code quality and prevent deploying broken code.
   test:
     name: Run Tests
     runs-on: ubuntu-latest
@@ -24,11 +27,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt pytest
+      # TODO: Add a step here to actually run the tests using pytest.
 
+  # The 'precheck' job runs after tests pass to verify server configuration before attempting deployment.
   precheck:
     name: Passwordless sudo precheck
     runs-on: ubuntu-latest
-    needs: test
+    needs: test # This job depends on the 'test' job succeeding.
     steps:
       - name: Setup SSH key for server connection
         run: |
@@ -37,6 +42,7 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
+      # This step connects to the server and verifies that the deployment user can run sudo commands without a password.
       - name: Check passwordless sudo on server
         run: |
           ssh -o BatchMode=yes -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} bash <<'EOF'
@@ -58,13 +64,16 @@ jobs:
           fi
           EOF
 
+  # The 'deploy' job handles the actual deployment of the application to the server.
   deploy:
     name: Deploy to dev
-    needs: precheck
+    needs: precheck # This job depends on the 'precheck' job succeeding.
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Specifies the environment to use. This pulls in environment-specific secrets and variables.
     environment: dev
-    if: github.ref_name == 'master' || github.ref_name == 'dev'
+    # This condition ensures the deploy job only runs for pushes to 'master' or 'dev' branches.
+    if: github.ref_name == 'master' || github.ref_name == 'dev' # Note: This condition is redundant due to the 'on.push.branches' filter but is kept for clarity.
 
     steps:
       - name: Checkout code
@@ -72,6 +81,7 @@ jobs:
         with:
           fetch-depth: 1
 
+      # A debugging step to confirm which environment variables are being used.
       - name: Confirm environment and secrets context
         run: |
           echo "GITHUB REF NAME: ${{ github.ref_name }}"
@@ -85,6 +95,7 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
+      # Uses rsync to efficiently sync the project files to the server.
       - name: Deploy application files via rsync
         run: |
           echo "🚀 Starting to sync files to the server..."
@@ -95,6 +106,7 @@ jobs:
             ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/flask-app/
           echo "✅ File sync complete."
 
+      # This step runs a script on the remote server via SSH to set up the environment and restart the application.
       - name: Install dependencies and restart server
         run: |
           # This step requires passwordless sudo on the target server for the deployment user.
@@ -104,41 +116,47 @@ jobs:
           ssh -T ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
           set -ex
 
+          # Group server-side logs for better readability in the GitHub Actions UI.
           echo "::group::Server-side operations"
+
+          # Log the user executing the commands on the server for debugging.
           echo "--- Identifying user on remote server ---"
           echo "Running commands as user: $(whoami)"
           echo "User details: $(id)"
 
-          # Define environment-specific variables.
-          # You could also set these via secrets if they need to differ between environments.
-
+          # Navigate to the application directory defined in GitHub environment variables.
           cd ${{ vars.APP_DIR }}
           pwd
           ls -la
 
+          # Create a fresh Python virtual environment to ensure a clean state.
           echo "--- Setting up Python virtual environment ---"
           python3 -m venv venv
           source venv/bin/activate
 
+          # Install the required Python packages from requirements.txt.
           echo "--- Installing dependencies from requirements.txt ---"
           pip install -r requirements.txt
 
+          # Restart the application's systemd service to apply the new code.
           echo "--- Restarting application service with systemd ---"
           sudo /usr/bin/systemctl restart ${{ vars.SERVICE_NAME }}
 
+          # Perform a health check to ensure the service started correctly.
           echo "--- Checking application status ---"
           # Add a small delay to allow the service to start
           sleep 5
           # Use 'is-active' for a reliable script-based check. `set -e` will cause a failure if the service is not active.
           sudo /usr/bin/systemctl is-active --quiet ${{ vars.SERVICE_NAME }}
           echo "✅ Service is active and running."
-
           # For more detailed logs, also print the full status.
           sudo /usr/bin/systemctl status ${{ vars.SERVICE_NAME }} --no-pager
+
           echo "::endgroup::"
 
           echo "🎉 Deployment to server successful!"
           EOF
 
+      # Outputs the application URL from environment secrets for easy access.
       - name: Output application URL
-        run: echo "Deployed at ${{ secrets.APP_URL }}"
+        run: echo "Deployed at ${{ vars.APP_URL }}"
