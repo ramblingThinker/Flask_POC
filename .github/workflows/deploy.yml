@@ -39,12 +39,15 @@ jobs:
 
       - name: Check passwordless sudo on server
         run: |
-          if ssh -o BatchMode=yes -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "sudo -n true"; then
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+          echo "Checking passwordless sudo for user: $(whoami)"
+          if sudo -n true; then
             echo "✅ Passwordless sudo is correctly configured."
           else
             echo "❌ ERROR: Passwordless sudo is NOT configured. Please set it up before deploying."
             exit 1
           fi
+          EOF
 
   deploy:
     name: Deploy to ${{ github.ref_name == 'master' && 'Production' || 'Development' }}
