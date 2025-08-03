@@ -75,9 +75,8 @@ jobs:
       - name: Confirm environment and secrets context
         run: |
           echo "GITHUB REF NAME: ${{ github.ref_name }}"
-          echo "Environment Secrets in effect:"
-          echo "APP_DIR: ${{ secrets.APP_DIR }}"
-          echo "SERVICE_NAME: ${{ secrets.SERVICE_NAME }}"
+          echo "APP_DIR: ${{ secrets.APP_DIR || 'APP_DIR not available' }}"
+          echo "SERVICE_NAME: ${{ secrets.SERVICE_NAME || 'SERVICE_NAME not available' }}"
 
       - name: Setup SSH key for server connection
         run: |
